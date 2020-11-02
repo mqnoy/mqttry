@@ -1,0 +1,64 @@
+version: "2"
+
+networks:
+  mqtt_networks:
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    volumes:
+      - "./mosquitto:/mosquitto"
+    networks:
+      - mqtt_networks
+    ports:
+      - "1883:1883"
+  node-red:
+    depends_on:
+      - mosquitto
+    image: nodered/node-red:latest
+    volumes:
+      - "./node-red:/data"
+    user: "0"
+    networks:
+      - mqtt_networks
+    ports:
+      - "1880:1880"
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+    networks:
+      - mqtt_networks
+    env_file:
+      - './influxdb/.env'
+    volumes:
+      - ./influxdb/influxdb.conf:/etc/influxdb/influxdb.conf
+      - ./influxdb/data:/var/lib/influxdb
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - mqtt_networks
+    env_file:
+      - './grafana/.env'
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    networks:
+      - mqtt_networks
+    depends_on:
+      - influxdb
+      - mosquitto
+    volumes:
+      - ./telegraf/variabel:/etc/default/telegraf
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf
